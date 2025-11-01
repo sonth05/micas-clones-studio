@@ -1,71 +1,189 @@
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Menu, X, ShoppingCart, User, LogOut } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
 const Header = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const { user, userRole, signOut } = useAuth();
+  const navigate = useNavigate();
 
-  const navItems = [
-    { label: "Trang chủ", href: "#home" },
-    { label: "Giới thiệu", href: "#about" },
-    { label: "Thực đơn", href: "#menu" },
-    { label: "Chi nhánh", href: "#locations" },
-    { label: "Liên hệ", href: "#contact" },
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
+
+  const customerMenuItems = [
+    { label: "Trang chủ", href: "/" },
+    { label: "Thực đơn", href: "/products" },
+    { label: "Giới thiệu", href: "/#about" },
+    { label: "Chi nhánh", href: "/#locations" },
+    { label: "Liên hệ", href: "/#contact" },
   ];
+
+  const adminMenuItems = [
+    { label: "Trang chủ", href: "/" },
+    { label: "Quản lý sản phẩm", href: "/admin/products" },
+    { label: "Quản lý đơn hàng", href: "/admin/orders" },
+    { label: "Thống kê", href: "/admin/analytics" },
+  ];
+
+  const menuItems = userRole === 'admin' ? adminMenuItems : customerMenuItems;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-sm shadow-lg">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
-          {/* Logo */}
           <div className="flex items-center">
-            <a href="#home" className="text-2xl font-bold text-primary-foreground">
+            <Link to="/" className="text-2xl font-bold text-primary-foreground">
               <span className="text-accent">K</span>-Spice
-            </a>
+            </Link>
           </div>
 
-          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            {navItems.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="text-primary-foreground hover:text-accent transition-colors duration-300 font-medium"
+            {menuItems.map((item) => (
+              <Link
+                key={item.label}
+                to={item.href}
+                className="text-primary-foreground hover:text-accent transition-colors font-medium"
               >
                 {item.label}
-              </a>
+              </Link>
             ))}
-            <Button variant="default" className="bg-accent hover:bg-accent/90 text-foreground font-semibold">
-              Đặt bàn
-            </Button>
+            
+            {user ? (
+              <div className="flex items-center gap-4">
+                {userRole === 'customer' && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-primary-foreground hover:text-accent"
+                    onClick={() => navigate('/cart')}
+                  >
+                    <ShoppingCart className="h-5 w-5" />
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-primary-foreground hover:text-accent">
+                      <User className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => navigate('/account')}>
+                      Tài khoản của tôi
+                    </DropdownMenuItem>
+                    {userRole === 'customer' && (
+                      <DropdownMenuItem onClick={() => navigate('/my-orders')}>
+                        Đơn hàng của tôi
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Đăng xuất
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ) : (
+              <Button 
+                className="bg-accent hover:bg-accent/90 text-foreground font-semibold"
+                onClick={() => navigate('/auth')}
+              >
+                Đăng nhập
+              </Button>
+            )}
           </nav>
 
-          {/* Mobile Menu Button */}
           <button
             className="md:hidden text-primary-foreground"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label="Toggle menu"
+            onClick={() => setIsOpen(!isOpen)}
           >
-            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
 
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
+        {isOpen && (
           <nav className="md:hidden py-4 border-t border-primary-foreground/20">
-            {navItems.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="block py-3 text-primary-foreground hover:text-accent transition-colors"
-                onClick={() => setIsMenuOpen(false)}
+            {menuItems.map((item) => (
+              <Link
+                key={item.label}
+                to={item.href}
+                className="block text-primary-foreground hover:text-accent transition-colors font-medium py-2"
+                onClick={() => setIsOpen(false)}
               >
                 {item.label}
-              </a>
+              </Link>
             ))}
-            <Button variant="default" className="w-full mt-4 bg-accent hover:bg-accent/90 text-foreground">
-              Đặt bàn
-            </Button>
+            {user ? (
+              <div className="space-y-2 mt-4">
+                {userRole === 'customer' && (
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => {
+                      navigate('/cart');
+                      setIsOpen(false);
+                    }}
+                  >
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    Giỏ hàng
+                  </Button>
+                )}
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => {
+                    navigate('/account');
+                    setIsOpen(false);
+                  }}
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  Tài khoản
+                </Button>
+                {userRole === 'customer' && (
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => {
+                      navigate('/my-orders');
+                      setIsOpen(false);
+                    }}
+                  >
+                    Đơn hàng của tôi
+                  </Button>
+                )}
+                <Button
+                  className="w-full bg-accent hover:bg-accent/90 text-foreground"
+                  onClick={() => {
+                    handleSignOut();
+                    setIsOpen(false);
+                  }}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Đăng xuất
+                </Button>
+              </div>
+            ) : (
+              <Button
+                className="w-full mt-4 bg-accent hover:bg-accent/90 text-foreground"
+                onClick={() => {
+                  navigate('/auth');
+                  setIsOpen(false);
+                }}
+              >
+                Đăng nhập
+              </Button>
+            )}
           </nav>
         )}
       </div>
