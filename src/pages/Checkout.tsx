@@ -17,7 +17,7 @@ import AddressSelector from "@/components/AddressSelector";
 import PaymentInfo from "@/components/PaymentInfo";
 
 const checkoutSchema = z.object({
-  paymentMethod: z.enum(["cod", "bank_transfer", "e_wallet"]),
+  paymentMethod: z.enum(["bank_transfer", "e_wallet"]),
   notes: z.string().max(500, "Ghi chú quá dài").optional(),
 });
 
@@ -32,7 +32,7 @@ const Checkout = () => {
   const form = useForm<z.infer<typeof checkoutSchema>>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
-      paymentMethod: "cod",
+      paymentMethod: "bank_transfer",
       notes: "",
     },
   });
@@ -194,12 +194,6 @@ const Checkout = () => {
                                 defaultValue={field.value}
                                 className="space-y-3"
                               >
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="cod" id="cod" />
-                                  <label htmlFor="cod" className="cursor-pointer">
-                                    Thanh toán khi nhận hàng (COD)
-                                  </label>
-                                </div>
                                 <div className="flex items-center space-x-2">
                                   <RadioGroupItem value="bank_transfer" id="bank" />
                                   <label htmlFor="bank" className="cursor-pointer">
