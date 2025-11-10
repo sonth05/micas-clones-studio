@@ -86,6 +86,7 @@ const Auth = () => {
   const onSignUp = async (values: z.infer<typeof signUpSchema>) => {
     try {
       await signUp(values.email, values.password, values.fullName, values.phone);
+      // Note: With auto-confirm enabled, user is logged in immediately
       navigate('/');
     } catch (error) {
       // Error handling is done in the context

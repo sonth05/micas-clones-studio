@@ -10,14 +10,31 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { user, userRole, signOut } = useAuth();
   const navigate = useNavigate();
 
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
   const handleSignOut = async () => {
+    setShowLogoutDialog(true);
+  };
+
+  const confirmSignOut = async () => {
     await signOut();
+    setShowLogoutDialog(false);
     navigate('/');
   };
 
@@ -187,6 +204,21 @@ const Header = () => {
           </nav>
         )}
       </div>
+
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận đăng xuất</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSignOut}>Đăng xuất</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </header>
   );
 };

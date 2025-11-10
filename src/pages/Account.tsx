@@ -21,7 +21,13 @@ const profileSchema = z.object({
 });
 
 const passwordSchema = z.object({
-  newPassword: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự"),
+  currentPassword: z.string().min(1, "Vui lòng nhập mật khẩu hiện tại"),
+  newPassword: z.string()
+    .min(8, "Mật khẩu phải có ít nhất 8 ký tự")
+    .regex(/[A-Z]/, "Mật khẩu phải chứa ít nhất 1 chữ hoa")
+    .regex(/[a-z]/, "Mật khẩu phải chứa ít nhất 1 chữ thường")
+    .regex(/[0-9]/, "Mật khẩu phải chứa ít nhất 1 chữ số")
+    .regex(/[^A-Za-z0-9]/, "Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt"),
   confirmPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Mật khẩu không khớp",
@@ -45,6 +51,7 @@ const Account = () => {
   const passwordForm = useForm<z.infer<typeof passwordSchema>>({
     resolver: zodResolver(passwordSchema),
     defaultValues: {
+      currentPassword: "",
       newPassword: "",
       confirmPassword: "",
     },
@@ -99,6 +106,22 @@ const Account = () => {
 
   const onUpdatePassword = async (values: z.infer<typeof passwordSchema>) => {
     try {
+      // Verify current password by attempting to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || "",
+        password: values.currentPassword,
+      });
+
+      if (signInError) {
+        toast({
+          title: "Lỗi",
+          description: "Mật khẩu hiện tại không đúng",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update to new password
       const { error } = await supabase.auth.updateUser({
         password: values.newPassword,
       });
@@ -107,10 +130,16 @@ const Account = () => {
 
       toast({
         title: "Thành công",
-        description: "Đổi mật khẩu thành công",
+        description: "Đổi mật khẩu thành công. Vui lòng đăng nhập lại.",
       });
 
       passwordForm.reset();
+      
+      // Sign out after password change
+      setTimeout(async () => {
+        await supabase.auth.signOut();
+        navigate("/auth");
+      }, 2000);
     } catch (error: any) {
       toast({
         title: "Lỗi",
@@ -199,6 +228,19 @@ const Account = () => {
                     <form onSubmit={passwordForm.handleSubmit(onUpdatePassword)} className="space-y-4">
                       <FormField
                         control={passwordForm.control}
+                        name="currentPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Mật khẩu hiện tại</FormLabel>
+                            <FormControl>
+                              <Input type="password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={passwordForm.control}
                         name="newPassword"
                         render={({ field }) => (
                           <FormItem>
@@ -215,7 +257,7 @@ const Account = () => {
                         name="confirmPassword"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Xác nhận mật khẩu</FormLabel>
+                            <FormLabel>Xác nhận mật khẩu mới</FormLabel>
                             <FormControl>
                               <Input type="password" {...field} />
                             </FormControl>
