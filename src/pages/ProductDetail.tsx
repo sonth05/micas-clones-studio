@@ -31,6 +31,7 @@ const ProductDetail = () => {
   const { toast } = useToast();
   const [product, setProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [spicyLevel, setSpicyLevel] = useState(0);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -70,6 +71,11 @@ const ProductDetail = () => {
     }
 
     try {
+      // Tạo ghi chú bao gồm cấp độ cay
+      const fullNotes = spicyLevel > 0 
+        ? `Độ cay: ${spicyLevel}/7${notes ? ` - ${notes}` : ''}`
+        : notes;
+
       const { data: existingItem } = await supabase
         .from("cart_items")
         .select("*")
@@ -82,7 +88,7 @@ const ProductDetail = () => {
           .from("cart_items")
           .update({
             quantity: existingItem.quantity + quantity,
-            notes: notes || existingItem.notes,
+            notes: fullNotes || existingItem.notes,
           })
           .eq("id", existingItem.id);
 
@@ -92,7 +98,7 @@ const ProductDetail = () => {
           user_id: user.id,
           product_id: id,
           quantity,
-          notes,
+          notes: fullNotes,
         });
 
         if (error) throw error;
@@ -110,6 +116,11 @@ const ProductDetail = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleSpicyLevelChange = (value: string) => {
+    const numValue = parseInt(value) || 0;
+    setSpicyLevel(Math.max(0, Math.min(7, numValue)));
   };
 
   const formatPrice = (price: number) => {
@@ -180,6 +191,41 @@ const ProductDetail = () => {
                   <p className="text-muted-foreground">{product.ingredients}</p>
                 </div>
               )}
+
+              {/* Chọn độ cay */}
+              <div>
+                <h3 className="font-semibold mb-2">Độ cay (0-7)</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Chọn cấp độ cay phù hợp với khẩu vị của bạn
+                </p>
+                <div className="flex items-center gap-4">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setSpicyLevel(Math.max(0, spicyLevel - 1))}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="7"
+                      value={spicyLevel}
+                      onChange={(e) => handleSpicyLevelChange(e.target.value)}
+                      className="w-20 text-center text-xl font-semibold"
+                    />
+                    <span className="text-lg">{"🌶️".repeat(spicyLevel)}</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setSpicyLevel(Math.min(7, spicyLevel + 1))}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
 
               <div>
                 <h3 className="font-semibold mb-2">Số lượng</h3>
