@@ -13,6 +13,7 @@ import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Account from "./pages/Account";
 import MyOrders from "./pages/MyOrders";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
@@ -37,7 +38,7 @@ const App = () => (
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/account" element={<Account />} />
             <Route path="/my-orders" element={<MyOrders />} />
-            <Route path="/admin" element={<Navigate to="/admin/analytics" replace />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/products" element={<AdminProducts />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/analytics" element={<AdminAnalytics />} />
