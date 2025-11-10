@@ -85,7 +85,7 @@ const handler = async (req: Request): Promise<Response> => {
         : `Chào bạn,\n\nMã OTP để đặt lại mật khẩu của bạn là: <strong>${otpCode}</strong>\n\nMã này có hiệu lực trong 10 phút.\n\nNếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.`;
 
     const emailResponse = await resend.emails.send({
-      from: "K-Spice <trantramy17112005@gmail.com>",
+      from: "K-Spice <onboarding@resend.dev>",
       to: [email],
       subject,
       html: `
