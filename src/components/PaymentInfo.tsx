@@ -7,6 +7,17 @@ interface PaymentInfoProps {
 }
 
 const PaymentInfo = ({ paymentMethod }: PaymentInfoProps) => {
+  if (paymentMethod === "cod") {
+    return (
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          Bạn sẽ thanh toán bằng tiền mặt khi nhận hàng. Vui lòng chuẩn bị đủ tiền để thanh toán cho shipper.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   if (paymentMethod === "bank_transfer") {
     return (
       <Card className="border-primary/50">

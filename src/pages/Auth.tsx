@@ -9,9 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -45,13 +42,8 @@ const forgotPasswordSchema = z.object({
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState("signin");
-  const [showOTP, setShowOTP] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [generatedOTP, setGeneratedOTP] = useState("");
-  const [signUpData, setSignUpData] = useState<any>(null);
   const { user, signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -97,71 +89,17 @@ const Auth = () => {
     }
   };
 
-  const sendOTP = async (email: string) => {
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOTP(otpCode);
-
-    try {
-      const { error } = await supabase.functions.invoke("send-otp", {
-        body: { email, otp: otpCode },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Mã OTP đã được gửi",
-        description: "Vui lòng kiểm tra email của bạn",
-      });
-      
-      return true;
-    } catch (error: any) {
-      console.error("Failed to send OTP:", error);
-      toast({
-        title: "Lỗi gửi OTP",
-        description: "Không thể gửi mã xác thực. Vui lòng thử lại.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
   const onSignUp = async (values: z.infer<typeof signUpSchema>) => {
     try {
-      setSignUpData(values);
-      const success = await sendOTP(values.email);
-      if (success) {
-        setShowOTP(true);
-      }
-    } catch (error) {
-      // Error handling is done in the context
-    }
-  };
-
-  const verifyOTP = async () => {
-    if (otp !== generatedOTP) {
-      toast({
-        title: "Mã OTP không đúng",
-        description: "Vui lòng kiểm tra lại mã OTP",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
       await signUp(
-        signUpData.email,
-        signUpData.password,
-        signUpData.fullName,
-        signUpData.phone,
-        signUpData.addressLine,
-        signUpData.city,
-        signUpData.district
+        values.email, 
+        values.password, 
+        values.fullName, 
+        values.phone,
+        values.addressLine,
+        values.city,
+        values.district
       );
-      
-      toast({
-        title: "Đăng ký thành công",
-        description: "Chào mừng bạn đến với K-Spice!",
-      });
       navigate('/');
     } catch (error) {
       // Error handling is done in the context
@@ -176,66 +114,6 @@ const Auth = () => {
       // Error handling is done in the context
     }
   };
-
-  if (showOTP) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 flex items-center justify-center py-32 px-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Xác thực OTP</CardTitle>
-              <CardDescription>
-                Nhập mã OTP gồm 6 chữ số đã được gửi đến email {signUpData?.email}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex justify-center">
-                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
-                  </InputOTPGroup>
-                </InputOTP>
-              </div>
-              <div className="space-y-2">
-                <Button
-                  onClick={verifyOTP}
-                  disabled={otp.length !== 6}
-                  className="w-full"
-                >
-                  Xác thực
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => sendOTP(signUpData?.email)}
-                  className="w-full"
-                >
-                  Gửi lại mã OTP
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setShowOTP(false);
-                    setOtp("");
-                    setGeneratedOTP("");
-                  }}
-                  className="w-full"
-                >
-                  Quay lại
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col">

@@ -17,7 +17,7 @@ import AddressSelector from "@/components/AddressSelector";
 import PaymentInfo from "@/components/PaymentInfo";
 
 const checkoutSchema = z.object({
-  paymentMethod: z.enum(["bank_transfer", "e_wallet"]),
+  paymentMethod: z.enum(["cod", "bank_transfer", "e_wallet"]),
   notes: z.string().max(500, "Ghi chú quá dài").optional(),
 });
 
@@ -32,7 +32,7 @@ const Checkout = () => {
   const form = useForm<z.infer<typeof checkoutSchema>>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
-      paymentMethod: "bank_transfer",
+      paymentMethod: "cod",
       notes: "",
     },
   });
@@ -117,36 +117,9 @@ const Checkout = () => {
         .delete()
         .eq("user_id", user?.id);
 
-      // Send invoice email
-      try {
-        const invoiceItems = cartItems.map((item) => ({
-          name: item.products.name,
-          quantity: item.quantity,
-          price: item.products.price,
-          subtotal: item.products.price * item.quantity,
-        }));
-
-        await supabase.functions.invoke("send-invoice", {
-          body: {
-            email: user?.email,
-            orderNumber,
-            fullName: selectedAddress.full_name,
-            phone: selectedAddress.phone,
-            address: `${selectedAddress.address_line}, ${selectedAddress.district ? selectedAddress.district + ", " : ""}${selectedAddress.city}`,
-            items: invoiceItems,
-            totalAmount: calculateTotal(),
-            paymentMethod: values.paymentMethod,
-          },
-        });
-        console.log("Invoice email sent successfully");
-      } catch (emailError) {
-        console.error("Failed to send invoice email:", emailError);
-        // Don't block the order process if email fails
-      }
-
       toast({
         title: "Đặt hàng thành công",
-        description: `Mã đơn hàng: ${orderNumber}. Hóa đơn đã được gửi đến email của bạn!`,
+        description: `Mã đơn hàng: ${orderNumber}. Chúng tôi sẽ xử lý đơn hàng của bạn sớm nhất!`,
       });
 
       navigate("/my-orders");
@@ -221,6 +194,12 @@ const Checkout = () => {
                                 defaultValue={field.value}
                                 className="space-y-3"
                               >
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="cod" id="cod" />
+                                  <label htmlFor="cod" className="cursor-pointer">
+                                    Thanh toán khi nhận hàng (COD)
+                                  </label>
+                                </div>
                                 <div className="flex items-center space-x-2">
                                   <RadioGroupItem value="bank_transfer" id="bank" />
                                   <label htmlFor="bank" className="cursor-pointer">
