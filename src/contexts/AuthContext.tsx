@@ -10,7 +10,7 @@ interface AuthContextType {
   userRole: 'admin' | 'customer' | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string, phone: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, phone: string, addressLine: string, city: string, district?: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
@@ -97,7 +97,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUp = async (email: string, password: string, fullName: string, phone: string) => {
+  const signUp = async (
+    email: string, 
+    password: string, 
+    fullName: string, 
+    phone: string,
+    addressLine: string,
+    city: string,
+    district?: string
+  ) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -112,6 +120,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) throw error;
+
+      // Create default address for the user
+      if (data.user) {
+        const { error: addressError } = await supabase
+          .from('addresses')
+          .insert({
+            user_id: data.user.id,
+            full_name: fullName,
+            phone: phone,
+            address_line: addressLine,
+            city: city,
+            district: district || '',
+            is_default: true,
+          });
+
+        if (addressError) {
+          console.error('Error creating address:', addressError);
+        }
+      }
 
       toast({
         title: "Đăng ký thành công",

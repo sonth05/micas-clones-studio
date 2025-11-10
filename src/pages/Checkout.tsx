@@ -8,21 +8,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import AddressSelector from "@/components/AddressSelector";
+import PaymentInfo from "@/components/PaymentInfo";
 
 const checkoutSchema = z.object({
-  fullName: z.string().min(1, "Vui lòng nhập họ tên"),
-  phone: z.string().min(10, "Số điện thoại không hợp lệ"),
-  addressLine: z.string().min(1, "Vui lòng nhập địa chỉ"),
-  city: z.string().min(1, "Vui lòng chọn thành phố"),
-  district: z.string().optional(),
   paymentMethod: z.enum(["cod", "bank_transfer", "e_wallet"]),
-  notes: z.string().optional(),
+  notes: z.string().max(500, "Ghi chú quá dài").optional(),
 });
 
 const Checkout = () => {
@@ -31,15 +27,11 @@ const Checkout = () => {
   const { toast } = useToast();
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedAddress, setSelectedAddress] = useState<any>(null);
 
   const form = useForm<z.infer<typeof checkoutSchema>>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
-      fullName: "",
-      phone: "",
-      addressLine: "",
-      city: "",
-      district: "",
       paymentMethod: "cod",
       notes: "",
     },
@@ -51,21 +43,7 @@ const Checkout = () => {
       return;
     }
     fetchCart();
-    fetchProfile();
   }, [user]);
-
-  const fetchProfile = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user?.id)
-      .single();
-
-    if (data) {
-      form.setValue("fullName", data.full_name || "");
-      form.setValue("phone", data.phone || "");
-    }
-  };
 
   const fetchCart = async () => {
     const { data } = await supabase
@@ -85,6 +63,15 @@ const Checkout = () => {
   };
 
   const onSubmit = async (values: z.infer<typeof checkoutSchema>) => {
+    if (!selectedAddress) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng chọn địa chỉ giao hàng",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const orderNumber = `ORD${Date.now()}`;
       
@@ -93,11 +80,12 @@ const Checkout = () => {
         .insert({
           order_number: orderNumber,
           user_id: user?.id,
-          full_name: values.fullName,
-          phone: values.phone,
-          address_line: values.addressLine,
-          city: values.city,
-          district: values.district,
+          full_name: selectedAddress.full_name,
+          phone: selectedAddress.phone,
+          address_line: selectedAddress.address_line,
+          city: selectedAddress.city,
+          district: selectedAddress.district,
+          address_id: selectedAddress.id,
           total_amount: calculateTotal(),
           payment_method: values.paymentMethod,
           notes: values.notes,
@@ -131,7 +119,7 @@ const Checkout = () => {
 
       toast({
         title: "Đặt hàng thành công",
-        description: `Mã đơn hàng: ${orderNumber}`,
+        description: `Mã đơn hàng: ${orderNumber}. Chúng tôi sẽ xử lý đơn hàng của bạn sớm nhất!`,
       });
 
       navigate("/my-orders");
@@ -178,105 +166,51 @@ const Checkout = () => {
           </h1>
 
           <div className="grid lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Address Selection */}
+              <Card>
+                <CardContent className="p-6">
+                  <AddressSelector 
+                    onSelectAddress={setSelectedAddress}
+                    selectedAddressId={selectedAddress?.id}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Payment and Notes */}
               <Card>
                 <CardContent className="p-6">
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="fullName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Họ và tên</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="phone"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Số điện thoại</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <FormField
-                        control={form.control}
-                        name="addressLine"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Địa chỉ giao hàng</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="city"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Thành phố</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="district"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Quận/Huyện</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
                       <FormField
                         control={form.control}
                         name="paymentMethod"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Phương thức thanh toán</FormLabel>
+                            <FormLabel className="text-base font-semibold">Phương thức thanh toán</FormLabel>
                             <FormControl>
                               <RadioGroup
                                 onValueChange={field.onChange}
                                 defaultValue={field.value}
+                                className="space-y-3"
                               >
                                 <div className="flex items-center space-x-2">
                                   <RadioGroupItem value="cod" id="cod" />
-                                  <label htmlFor="cod">Thanh toán khi nhận hàng (COD)</label>
+                                  <label htmlFor="cod" className="cursor-pointer">
+                                    Thanh toán khi nhận hàng (COD)
+                                  </label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                   <RadioGroupItem value="bank_transfer" id="bank" />
-                                  <label htmlFor="bank">Chuyển khoản ngân hàng</label>
+                                  <label htmlFor="bank" className="cursor-pointer">
+                                    Chuyển khoản ngân hàng
+                                  </label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                   <RadioGroupItem value="e_wallet" id="wallet" />
-                                  <label htmlFor="wallet">Ví điện tử</label>
+                                  <label htmlFor="wallet" className="cursor-pointer">
+                                    Ví điện tử (ZaloPay, Momo)
+                                  </label>
                                 </div>
                               </RadioGroup>
                             </FormControl>
@@ -285,21 +219,32 @@ const Checkout = () => {
                         )}
                       />
 
+                      <PaymentInfo paymentMethod={form.watch("paymentMethod")} />
+
                       <FormField
                         control={form.control}
                         name="notes"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Ghi chú (tùy chọn)</FormLabel>
+                            <FormLabel>Ghi chú đơn hàng (tùy chọn)</FormLabel>
                             <FormControl>
-                              <Textarea {...field} rows={3} />
+                              <Textarea 
+                                {...field} 
+                                rows={3}
+                                placeholder="Ví dụ: Gọi chuông trước khi giao..."
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
 
-                      <Button type="submit" className="w-full" size="lg">
+                      <Button 
+                        type="submit" 
+                        className="w-full" 
+                        size="lg"
+                        disabled={!selectedAddress}
+                      >
                         Xác nhận đặt hàng
                       </Button>
                     </form>

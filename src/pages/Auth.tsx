@@ -18,9 +18,12 @@ const signInSchema = z.object({
 });
 
 const signUpSchema = z.object({
-  fullName: z.string().min(1, "Vui lòng nhập họ tên"),
-  phone: z.string().min(10, "Số điện thoại phải có ít nhất 10 số"),
-  email: z.string().email("Email không hợp lệ"),
+  fullName: z.string().min(1, "Vui lòng nhập họ tên").max(100, "Họ tên quá dài"),
+  phone: z.string().min(10, "Số điện thoại phải có ít nhất 10 số").max(15, "Số điện thoại không hợp lệ"),
+  email: z.string().email("Email không hợp lệ").max(255, "Email quá dài"),
+  addressLine: z.string().min(1, "Vui lòng nhập địa chỉ").max(200, "Địa chỉ quá dài"),
+  city: z.string().min(1, "Vui lòng nhập thành phố").max(100, "Tên thành phố quá dài"),
+  district: z.string().max(100, "Tên quận/huyện quá dài").optional(),
   password: z.string()
     .min(8, "Mật khẩu phải có ít nhất 8 ký tự")
     .regex(/[A-Z]/, "Mật khẩu phải chứa ít nhất 1 chữ hoa")
@@ -62,6 +65,9 @@ const Auth = () => {
       fullName: "",
       phone: "",
       email: "",
+      addressLine: "",
+      city: "",
+      district: "",
       password: "",
       confirmPassword: "",
     },
@@ -85,8 +91,15 @@ const Auth = () => {
 
   const onSignUp = async (values: z.infer<typeof signUpSchema>) => {
     try {
-      await signUp(values.email, values.password, values.fullName, values.phone);
-      // Note: With auto-confirm enabled, user is logged in immediately
+      await signUp(
+        values.email, 
+        values.password, 
+        values.fullName, 
+        values.phone,
+        values.addressLine,
+        values.city,
+        values.district
+      );
       navigate('/');
     } catch (error) {
       // Error handling is done in the context
@@ -197,6 +210,47 @@ const Auth = () => {
                         </FormItem>
                       )}
                     />
+                    <FormField
+                      control={signUpForm.control}
+                      name="addressLine"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Địa chỉ</FormLabel>
+                          <FormControl>
+                            <Input placeholder="123 Đường ABC" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={signUpForm.control}
+                        name="city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Thành phố</FormLabel>
+                            <FormControl>
+                              <Input placeholder="TP. HCM" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={signUpForm.control}
+                        name="district"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Quận/Huyện</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Quận 1" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                     <FormField
                       control={signUpForm.control}
                       name="password"
