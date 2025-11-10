@@ -127,13 +127,37 @@ const Auth = () => {
 
   const onSignUp = async (values: z.infer<typeof signUpSchema>) => {
     try {
+      // Check if email already exists before sending OTP
+      const { data: checkData, error: checkError } = await supabase.functions.invoke("check-email", {
+        body: { email: values.email },
+      });
+
+      if (checkError) {
+        console.error("Error checking email:", checkError);
+        toast({
+          title: "Lỗi kiểm tra email",
+          description: "Không thể kiểm tra email. Vui lòng thử lại.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (checkData?.exists) {
+        toast({
+          title: "Email đã được đăng ký",
+          description: "Vui lòng sử dụng email khác hoặc đăng nhập",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       setSignUpData(values);
       const success = await sendOTP(values.email);
       if (success) {
         setShowOTP(true);
       }
     } catch (error) {
-      // Error handling is done in the context
+      console.error("Signup error:", error);
     }
   };
 
