@@ -145,6 +145,11 @@ const Auth = () => {
         .update({ verified: true })
         .eq("id", data.id);
 
+      toast({
+        title: "Xác thực thành công",
+        description: "Mã OTP hợp lệ!",
+      });
+
       return true;
     } catch (error: any) {
       toast({
