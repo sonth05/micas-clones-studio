@@ -7,6 +7,21 @@ import { DollarSign, ShoppingBag, Users, Package, Download } from "lucide-react"
 import AdminLayout from "@/components/admin/AdminLayout";
 import StatsCard from "@/components/admin/StatsCard";
 import * as XLSX from 'xlsx';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 const AdminAnalytics = () => {
   const { userRole } = useAuth();
@@ -18,12 +33,16 @@ const AdminAnalytics = () => {
   });
   const [revenueData, setRevenueData] = useState<any[]>([]);
   const [productStats, setProductStats] = useState<any[]>([]);
+  const [orderStatusData, setOrderStatusData] = useState<any[]>([]);
+
+  const COLORS = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7'];
 
   useEffect(() => {
     if (userRole !== 'admin') return;
     fetchStats();
     fetchRevenueData();
     fetchProductStats();
+    fetchOrderStatusData();
   }, [userRole]);
 
   const fetchStats = async () => {
@@ -61,6 +80,34 @@ const AdminAnalytics = () => {
       .limit(10);
 
     setProductStats(data || []);
+  };
+
+  const fetchOrderStatusData = async () => {
+    const statusLabels: Record<string, string> = {
+      pending: 'Chờ xử lý',
+      processing: 'Đang xử lý',
+      shipping: 'Đang giao',
+      delivered: 'Đã giao',
+      cancelled: 'Đã hủy',
+    };
+
+    const { data } = await supabase
+      .from("orders")
+      .select("status");
+
+    if (data) {
+      const statusCount = data.reduce((acc: any, order) => {
+        acc[order.status] = (acc[order.status] || 0) + 1;
+        return acc;
+      }, {});
+
+      const chartData = Object.entries(statusCount).map(([status, count]) => ({
+        name: statusLabels[status] || status,
+        value: count as number,
+      }));
+
+      setOrderStatusData(chartData);
+    }
   };
 
   const exportRevenueToExcel = () => {
@@ -127,65 +174,114 @@ const AdminAnalytics = () => {
           />
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          {/* Revenue Chart */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Doanh thu 30 ngày gần nhất</CardTitle>
+              <CardTitle>Biểu đồ doanh thu 30 ngày</CardTitle>
               <Button variant="outline" size="sm" onClick={exportRevenueToExcel}>
                 <Download className="h-4 w-4 mr-2" />
                 Xuất Excel
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {revenueData.slice(0, 10).map((item) => (
-                  <div key={item.date} className="flex justify-between items-center">
-                    <span className="text-sm">
-                      {new Date(item.date).toLocaleDateString('vi-VN')}
-                    </span>
-                    <div className="text-right">
-                      <p className="font-semibold">
-                        {Number(item.total_revenue).toLocaleString()}đ
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.order_count} đơn
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={revenueData.slice().reverse()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="date" 
+                    tickFormatter={(date) => new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}
+                  />
+                  <YAxis 
+                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
+                  />
+                  <Tooltip 
+                    formatter={(value: any) => [`${Number(value).toLocaleString()}đ`, 'Doanh thu']}
+                    labelFormatter={(date) => new Date(date).toLocaleDateString('vi-VN')}
+                  />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="total_revenue" 
+                    name="Doanh thu"
+                    stroke="hsl(var(--accent))" 
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--accent))' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Top 10 sản phẩm bán chạy</CardTitle>
-              <Button variant="outline" size="sm" onClick={exportProductsToExcel}>
-                <Download className="h-4 w-4 mr-2" />
-                Xuất Excel
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {productStats.map((item, index) => (
-                  <div key={item.id} className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-bold">{index + 1}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.total_quantity_sold || 0} đã bán
-                      </p>
-                    </div>
-                    <p className="font-semibold text-sm">
-                      {Number(item.total_revenue || 0).toLocaleString()}đ
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Top Products Bar Chart */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Top sản phẩm bán chạy</CardTitle>
+                <Button variant="outline" size="sm" onClick={exportProductsToExcel}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Xuất Excel
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={productStats.slice(0, 5)}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="name" 
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      interval={0}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis 
+                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
+                    />
+                    <Tooltip 
+                      formatter={(value: any) => [`${Number(value).toLocaleString()}đ`, 'Doanh thu']}
+                    />
+                    <Legend />
+                    <Bar 
+                      dataKey="total_revenue" 
+                      name="Doanh thu"
+                      fill="hsl(var(--primary))" 
+                      radius={[8, 8, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Order Status Pie Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Phân bố trạng thái đơn hàng</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={orderStatusData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {orderStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </AdminLayout>
