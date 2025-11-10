@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, X, ShoppingCart, User, LogOut } from "lucide-react";
+import { Menu, X, ShoppingCart, User, LogOut, LayoutDashboard } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
@@ -95,6 +95,15 @@ const Header = () => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    {userRole === 'admin' && (
+                      <>
+                        <DropdownMenuItem onClick={() => navigate('/admin/analytics')}>
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          Quản trị
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
                     <DropdownMenuItem onClick={() => navigate('/account')}>
                       Tài khoản của tôi
                     </DropdownMenuItem>
@@ -143,6 +152,18 @@ const Header = () => {
             ))}
             {user ? (
               <div className="space-y-2 mt-4">
+                {userRole === 'admin' && (
+                  <Button
+                    className="w-full bg-accent hover:bg-accent/90 text-foreground"
+                    onClick={() => {
+                      navigate('/admin/analytics');
+                      setIsOpen(false);
+                    }}
+                  >
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Quản trị
+                  </Button>
+                )}
                 {userRole === 'customer' && (
                   <Button
                     className="w-full"
