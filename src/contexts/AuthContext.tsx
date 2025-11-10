@@ -61,11 +61,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .single();
+        .eq('user_id', userId);
 
       if (error) throw error;
-      setUserRole(data?.role as 'admin' | 'customer');
+      const roles = (data || []).map((r: any) => r.role as 'admin' | 'customer');
+      setUserRole(roles.includes('admin') ? 'admin' : 'customer');
     } catch (error) {
       console.error('Error fetching user role:', error);
       setUserRole('customer'); // Default to customer
