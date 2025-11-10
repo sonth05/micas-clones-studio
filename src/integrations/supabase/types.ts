@@ -94,6 +94,13 @@ export type Database = {
             foreignKeyName: "cart_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "product_sales_stats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cart_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -179,6 +186,13 @@ export type Database = {
             foreignKeyName: "order_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "product_sales_stats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -189,6 +203,8 @@ export type Database = {
           address_id: string | null
           address_line: string
           cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           city: string
           created_at: string
           district: string | null
@@ -207,6 +223,8 @@ export type Database = {
           address_id?: string | null
           address_line: string
           cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           city: string
           created_at?: string
           district?: string | null
@@ -225,6 +243,8 @@ export type Database = {
           address_id?: string | null
           address_line?: string
           cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           city?: string
           created_at?: string
           district?: string | null
@@ -265,6 +285,7 @@ export type Database = {
           image_url: string | null
           ingredients: string | null
           is_available: boolean | null
+          is_deleted: boolean | null
           name: string
           price: number
           spicy_level: number | null
@@ -278,6 +299,7 @@ export type Database = {
           image_url?: string | null
           ingredients?: string | null
           is_available?: boolean | null
+          is_deleted?: boolean | null
           name: string
           price: number
           spicy_level?: number | null
@@ -291,6 +313,7 @@ export type Database = {
           image_url?: string | null
           ingredients?: string | null
           is_available?: boolean | null
+          is_deleted?: boolean | null
           name?: string
           price?: number
           spicy_level?: number | null
@@ -367,7 +390,26 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      daily_revenue: {
+        Row: {
+          date: string | null
+          order_count: number | null
+          total_revenue: number | null
+        }
+        Relationships: []
+      }
+      product_sales_stats: {
+        Row: {
+          id: string | null
+          image_url: string | null
+          name: string | null
+          price: number | null
+          total_orders: number | null
+          total_quantity_sold: number | null
+          total_revenue: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       generate_order_number: { Args: never; Returns: string }
