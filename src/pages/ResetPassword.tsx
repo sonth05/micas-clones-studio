@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,7 +27,24 @@ const resetPasswordSchema = z.object({
 
 const ResetPassword = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    // Check if coming from OTP verification
+    const state = location.state as { email?: string; verified?: boolean };
+    if (!state?.email || !state?.verified) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng xác thực OTP trước khi đặt lại mật khẩu",
+      });
+      navigate("/auth");
+      return;
+    }
+    setEmail(state.email);
+  }, [location, navigate, toast]);
 
   const form = useForm<z.infer<typeof resetPasswordSchema>>({
     resolver: zodResolver(resetPasswordSchema),
@@ -39,23 +56,33 @@ const ResetPassword = () => {
 
   const onSubmit = async (values: z.infer<typeof resetPasswordSchema>) => {
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: values.password,
+      if (!email) {
+        throw new Error("Email không hợp lệ");
+      }
+
+      // Call edge function to reset password
+      const { data, error } = await supabase.functions.invoke("reset-password", {
+        body: { 
+          email,
+          newPassword: values.password,
+          otpVerified: true
+        },
       });
 
       if (error) throw error;
 
       toast({
         title: "Thành công",
-        description: "Mật khẩu đã được đặt lại",
+        description: "Mật khẩu đã được đặt lại. Vui lòng đăng nhập lại.",
       });
 
+      // Redirect to auth page
       navigate('/auth');
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: error.message,
+        description: error.message || "Không thể đặt lại mật khẩu",
       });
     }
   };

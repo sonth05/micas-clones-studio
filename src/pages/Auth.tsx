@@ -9,12 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
 const signInSchema = z.object({
-  email: z.string().email("Email không hợp lệ"),
-  password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự"),
+  emailOrPhone: z.string().min(1, "Vui lòng nhập email hoặc số điện thoại"),
+  password: z.string().min(1, "Vui lòng nhập mật khẩu"),
 });
 
 const signUpSchema = z.object({
@@ -36,13 +39,22 @@ const signUpSchema = z.object({
   path: ["confirmPassword"],
 });
 
+const otpSchema = z.object({
+  otp: z.string().length(6, "OTP phải có 6 số"),
+});
+
 const forgotPasswordSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
 });
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState("signin");
-  const { user, signIn, signUp, resetPassword } = useAuth();
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [otpPurpose, setOtpPurpose] = useState<"signup" | "reset_password">("signup");
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [signupData, setSignupData] = useState<any>(null);
+  const { user, signIn, signUp } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -54,7 +66,7 @@ const Auth = () => {
   const signInForm = useForm<z.infer<typeof signInSchema>>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
-      email: "",
+      emailOrPhone: "",
       password: "",
     },
   });
@@ -73,6 +85,13 @@ const Auth = () => {
     },
   });
 
+  const otpForm = useForm<z.infer<typeof otpSchema>>({
+    resolver: zodResolver(otpSchema),
+    defaultValues: {
+      otp: "",
+    },
+  });
+
   const forgotPasswordForm = useForm<z.infer<typeof forgotPasswordSchema>>({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: {
@@ -80,40 +99,286 @@ const Auth = () => {
     },
   });
 
+  const sendOTP = async (email: string, purpose: "signup" | "reset_password") => {
+    try {
+      const { data, error } = await supabase.functions.invoke("send-otp", {
+        body: { email, purpose },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Mã OTP đã được gửi",
+        description: "Vui lòng kiểm tra email của bạn",
+      });
+
+      return true;
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: error.message || "Không thể gửi mã OTP",
+      });
+      return false;
+    }
+  };
+
+  const verifyOTP = async (email: string, otp: string, purpose: "signup" | "reset_password") => {
+    try {
+      const { data, error } = await supabase
+        .from("otp_verifications")
+        .select("*")
+        .eq("email", email)
+        .eq("otp_code", otp)
+        .eq("purpose", purpose)
+        .eq("verified", false)
+        .gt("expires_at", new Date().toISOString())
+        .single();
+
+      if (error || !data) {
+        throw new Error("Mã OTP không hợp lệ hoặc đã hết hạn");
+      }
+
+      // Mark OTP as verified
+      await supabase
+        .from("otp_verifications")
+        .update({ verified: true })
+        .eq("id", data.id);
+
+      return true;
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: error.message || "Xác thực OTP thất bại",
+      });
+      return false;
+    }
+  };
+
   const onSignIn = async (values: z.infer<typeof signInSchema>) => {
     try {
-      await signIn(values.email, values.password);
-      navigate('/');
-    } catch (error) {
-      // Error handling is done in the context
+      // Determine if input is email or phone
+      const isEmail = values.emailOrPhone.includes("@");
+      let email = values.emailOrPhone;
+
+      // If phone number, need to look up email from profiles
+      if (!isEmail) {
+        const { data: profiles, error: profileError } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("phone", values.emailOrPhone)
+          .maybeSingle();
+
+        if (profileError || !profiles?.email) {
+          throw new Error("Không tìm thấy tài khoản với số điện thoại này");
+        }
+        email = profiles.email;
+      }
+
+      await signIn(email, values.password);
+      toast({
+        title: "Đăng nhập thành công",
+        description: "Chào mừng bạn quay trở lại!",
+      });
+      navigate("/");
+    } catch (error: any) {
+      let errorMessage = "Đăng nhập thất bại";
+      if (error.message.includes("Invalid login credentials")) {
+        errorMessage = "Email/số điện thoại hoặc mật khẩu không đúng";
+      } else if (error.message.includes("Email not confirmed")) {
+        errorMessage = "Email chưa được xác thực";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: errorMessage,
+      });
     }
   };
 
   const onSignUp = async (values: z.infer<typeof signUpSchema>) => {
     try {
-      await signUp(
-        values.email, 
-        values.password, 
-        values.fullName, 
-        values.phone,
-        values.addressLine,
-        values.city,
-        values.district
-      );
-      navigate('/');
-    } catch (error) {
-      // Error handling is done in the context
+      // Check if email already exists
+      const { data: existingUser } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("email", values.email)
+        .maybeSingle();
+
+      if (existingUser) {
+        throw new Error("Email đã được sử dụng");
+      }
+
+      // Check if phone already exists
+      const { data: existingPhone } = await supabase
+        .from("profiles")
+        .select("phone")
+        .eq("phone", values.phone)
+        .maybeSingle();
+
+      if (existingPhone) {
+        throw new Error("Số điện thoại đã được sử dụng");
+      }
+
+      // Store signup data and send OTP
+      setSignupData(values);
+      setPendingEmail(values.email);
+      setOtpPurpose("signup");
+      
+      const sent = await sendOTP(values.email, "signup");
+      if (sent) {
+        setShowOtpInput(true);
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Đăng ký thất bại",
+        description: error.message,
+      });
+    }
+  };
+
+  const onVerifyOTP = async (values: z.infer<typeof otpSchema>) => {
+    try {
+      const verified = await verifyOTP(pendingEmail, values.otp, otpPurpose);
+      
+      if (verified) {
+        if (otpPurpose === "signup" && signupData) {
+          // Complete signup
+          await signUp(
+            signupData.email,
+            signupData.password,
+            signupData.fullName,
+            signupData.phone,
+            signupData.addressLine,
+            signupData.city,
+            signupData.district
+          );
+          
+          toast({
+            title: "Đăng ký thành công",
+            description: "Tài khoản của bạn đã được tạo và tự động đăng nhập.",
+          });
+          navigate("/");
+        } else if (otpPurpose === "reset_password") {
+          // Navigate to reset password page with verified email
+          navigate("/reset-password", { state: { email: pendingEmail, verified: true } });
+        }
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: error.message,
+      });
     }
   };
 
   const onForgotPassword = async (values: z.infer<typeof forgotPasswordSchema>) => {
     try {
-      await resetPassword(values.email);
-      setActiveTab("signin");
-    } catch (error) {
-      // Error handling is done in the context
+      // Check if email exists
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("email", values.email)
+        .maybeSingle();
+
+      if (!profile) {
+        throw new Error("Email không tồn tại trong hệ thống");
+      }
+
+      setPendingEmail(values.email);
+      setOtpPurpose("reset_password");
+      
+      const sent = await sendOTP(values.email, "reset_password");
+      if (sent) {
+        setShowOtpInput(true);
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: error.message,
+      });
     }
   };
+
+  const handleBackToForm = () => {
+    setShowOtpInput(false);
+    otpForm.reset();
+  };
+
+  if (showOtpInput) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center py-32 px-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Nhập mã OTP</CardTitle>
+              <CardDescription>
+                Mã xác thực đã được gửi đến {pendingEmail}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...otpForm}>
+                <form onSubmit={otpForm.handleSubmit(onVerifyOTP)} className="space-y-6">
+                  <FormField
+                    control={otpForm.control}
+                    name="otp"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col items-center">
+                        <FormLabel>Mã OTP (6 số)</FormLabel>
+                        <FormControl>
+                          <InputOTP maxLength={6} {...field}>
+                            <InputOTPGroup>
+                              <InputOTPSlot index={0} />
+                              <InputOTPSlot index={1} />
+                              <InputOTPSlot index={2} />
+                              <InputOTPSlot index={3} />
+                              <InputOTPSlot index={4} />
+                              <InputOTPSlot index={5} />
+                            </InputOTPGroup>
+                          </InputOTP>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="space-y-2">
+                    <Button type="submit" className="w-full">
+                      Xác thực
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={handleBackToForm}
+                    >
+                      Quay lại
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full"
+                      onClick={() => sendOTP(pendingEmail, otpPurpose)}
+                    >
+                      Gửi lại mã OTP
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -137,12 +402,12 @@ const Auth = () => {
                   <form onSubmit={signInForm.handleSubmit(onSignIn)} className="space-y-4">
                     <FormField
                       control={signInForm.control}
-                      name="email"
+                      name="emailOrPhone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email</FormLabel>
+                          <FormLabel>Email hoặc Số điện thoại</FormLabel>
                           <FormControl>
-                            <Input placeholder="email@example.com" {...field} />
+                            <Input placeholder="email@example.com hoặc 0901234567" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -301,7 +566,7 @@ const Auth = () => {
                       )}
                     />
                     <Button type="submit" className="w-full">
-                      Gửi email đặt lại mật khẩu
+                      Gửi mã OTP
                     </Button>
                   </form>
                 </Form>

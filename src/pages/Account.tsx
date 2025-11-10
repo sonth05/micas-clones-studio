@@ -15,9 +15,9 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
 const profileSchema = z.object({
-  fullName: z.string().min(1, "Vui lòng nhập họ tên"),
-  phone: z.string().min(10, "Số điện thoại không hợp lệ"),
-  email: z.string().email("Email không hợp lệ"),
+  fullName: z.string().min(1, "Vui lòng nhập họ tên").max(100, "Họ tên quá dài"),
+  phone: z.string().min(10, "Số điện thoại không hợp lệ").max(15, "Số điện thoại không hợp lệ"),
+  addressLine: z.string().min(1, "Vui lòng nhập địa chỉ").max(200, "Địa chỉ quá dài"),
 });
 
 const passwordSchema = z.object({
@@ -35,16 +35,17 @@ const passwordSchema = z.object({
 });
 
 const Account = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [email, setEmail] = useState("");
 
   const profileForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       fullName: "",
       phone: "",
-      email: "",
+      addressLine: "",
     },
   });
 
@@ -68,20 +69,33 @@ const Account = () => {
   const fetchProfile = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("*")
+      .select("full_name, phone, email")
       .eq("id", user?.id)
-      .single();
+      .maybeSingle();
 
     if (data) {
       profileForm.setValue("fullName", data.full_name || "");
       profileForm.setValue("phone", data.phone || "");
-      profileForm.setValue("email", data.email || "");
+      setEmail(data.email || "");
+      
+      // Get default address
+      const { data: address } = await supabase
+        .from("addresses")
+        .select("address_line")
+        .eq("user_id", user?.id)
+        .eq("is_default", true)
+        .maybeSingle();
+      
+      if (address) {
+        profileForm.setValue("addressLine", address.address_line || "");
+      }
     }
   };
 
   const onUpdateProfile = async (values: z.infer<typeof profileSchema>) => {
     try {
-      const { error } = await supabase
+      // Update profile
+      const { error: profileError } = await supabase
         .from("profiles")
         .update({
           full_name: values.fullName,
@@ -89,7 +103,26 @@ const Account = () => {
         })
         .eq("id", user?.id);
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // Update default address
+      const { data: existingAddress } = await supabase
+        .from("addresses")
+        .select("id")
+        .eq("user_id", user?.id)
+        .eq("is_default", true)
+        .maybeSingle();
+
+      if (existingAddress) {
+        const { error: addressError } = await supabase
+          .from("addresses")
+          .update({
+            address_line: values.addressLine,
+          })
+          .eq("id", existingAddress.id);
+
+        if (addressError) throw addressError;
+      }
 
       toast({
         title: "Thành công",
@@ -108,7 +141,7 @@ const Account = () => {
     try {
       // Verify current password by attempting to sign in
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user?.email || "",
+        email: email,
         password: values.currentPassword,
       });
 
@@ -135,9 +168,9 @@ const Account = () => {
 
       passwordForm.reset();
       
-      // Sign out after password change
+      // Sign out after password change and redirect to auth
       setTimeout(async () => {
-        await supabase.auth.signOut();
+        await signOut();
         navigate("/auth");
       }, 2000);
     } catch (error: any) {
@@ -200,17 +233,24 @@ const Account = () => {
                       />
                       <FormField
                         control={profileForm.control}
-                        name="email"
+                        name="addressLine"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Email</FormLabel>
+                            <FormLabel>Địa chỉ</FormLabel>
                             <FormControl>
-                              <Input {...field} disabled />
+                              <Input {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                      <div className="pt-2">
+                        <FormLabel>Email</FormLabel>
+                        <Input value={email} disabled className="mt-2" />
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Email không thể thay đổi
+                        </p>
+                      </div>
                       <Button type="submit">Cập nhật thông tin</Button>
                     </form>
                   </Form>

@@ -276,6 +276,36 @@ export type Database = {
           },
         ]
       }
+      otp_verifications: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          otp_code: string
+          purpose: string
+          verified: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          otp_code: string
+          purpose: string
+          verified?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          otp_code?: string
+          purpose?: string
+          verified?: boolean | null
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category_id: string | null
@@ -412,6 +442,7 @@ export type Database = {
       }
     }
     Functions: {
+      cleanup_expired_otps: { Args: never; Returns: undefined }
       generate_order_number: { Args: never; Returns: string }
       has_role: {
         Args: {
