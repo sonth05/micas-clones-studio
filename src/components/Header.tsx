@@ -3,6 +3,7 @@ import { Menu, X, ShoppingCart, User, LogOut, LayoutDashboard } from "lucide-rea
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
+import SearchBar from "./SearchBar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,14 +59,19 @@ const Header = () => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-sm shadow-lg">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between gap-4 h-20">
           <div className="flex items-center">
             <Link to="/" className="text-2xl font-bold text-primary-foreground">
               <span className="text-accent">K</span>-Spice
             </Link>
           </div>
 
-          <nav className="hidden md:flex items-center space-x-8">
+          {/* Search Bar - Hidden on mobile */}
+          <div className="hidden md:block flex-1 max-w-md">
+            <SearchBar />
+          </div>
+
+          <nav className="hidden md:flex items-center space-x-6">
             {menuItems.map((item) => (
               <Link
                 key={item.label}

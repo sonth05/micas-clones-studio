@@ -82,15 +82,15 @@ const SearchBar = () => {
   };
 
   return (
-    <div ref={searchRef} className="relative w-full max-w-2xl mx-auto">
+    <div ref={searchRef} className="relative w-full">
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
           type="text"
           placeholder="Tìm món ăn..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-12 pr-4 py-6 text-lg bg-background/95 backdrop-blur-sm border-2 focus:border-primary"
+          className="pl-10 pr-4 h-10 text-sm bg-background border border-border focus:border-accent"
         />
       </div>
 

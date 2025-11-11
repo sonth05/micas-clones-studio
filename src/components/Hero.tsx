@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
 import heroImage from "@/assets/hero-noodles.jpg";
-import SearchBar from "@/components/SearchBar";
 
 const Hero = () => {
   return (
@@ -28,12 +27,6 @@ const Hero = () => {
             Trải nghiệm mì cay đích thực từ Seoul, được chế biến bởi đầu bếp chuyên nghiệp
             với nguyên liệu tươi ngon nhập khẩu từ Hàn Quốc.
           </p>
-          
-          {/* Search Bar */}
-          <div className="mb-8">
-            <SearchBar />
-          </div>
-
           <div className="flex flex-col sm:flex-row gap-4">
             <Button
               size="lg"
